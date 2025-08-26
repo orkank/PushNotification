@@ -34,6 +34,7 @@ class SendSingle extends Action
             $imageUrl = $this->getRequest()->getParam('image_url');
             $actionUrl = $this->getRequest()->getParam('action_url');
             $notificationType = $this->getRequest()->getParam('notification_type', 'general');
+            $customData = $this->getRequest()->getParam('custom_data');
 
             // Ensure UTF-8 encoding for emoji support
             $title = mb_convert_encoding($title, 'UTF-8', 'auto');
@@ -46,13 +47,24 @@ class SendSingle extends Action
                 ]);
             }
 
+            // Parse custom data if provided
+            $parsedCustomData = null;
+            if ($customData) {
+                if (is_string($customData)) {
+                    $parsedCustomData = json_decode($customData, true);
+                } elseif (is_array($customData)) {
+                    $parsedCustomData = $customData;
+                }
+            }
+
             $result = $this->pushNotificationService->sendToSingleUser(
                 $customerId,
                 $title,
                 $message,
                 $imageUrl ? (string)$imageUrl : null,
                 $actionUrl ? (string)$actionUrl : null,
-                $notificationType
+                $notificationType,
+                $parsedCustomData
             );
 
             return $resultJson->setData($result);

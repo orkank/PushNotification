@@ -46,6 +46,7 @@
         <column xsi:type="text" name="message" nullable="false" comment="Notification Message"/>
         <column xsi:type="varchar" name="image_url" nullable="true" length="500" comment="Image URL"/>
         <column xsi:type="varchar" name="action_url" nullable="true" length="500" comment="Action URL"/>
+        <column xsi:type="text" name="custom_data" nullable="true" comment="Custom JSON Data"/>
         <column xsi:type="varchar" name="notification_type" nullable="false" length="50" default="general" comment="Notification Type"/>
         <column xsi:type="int" name="customer_id" unsigned="true" nullable="true" comment="Customer ID (for single user)"/>
         <column xsi:type="text" name="filters" nullable="true" comment="Filters applied (JSON)"/>

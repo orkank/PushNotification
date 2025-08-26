@@ -131,7 +131,8 @@ class ProcessNotificationQueue extends Command
                     $filtersArray,
                     $notificationLog->getImageUrl(),
                     $notificationLog->getActionUrl(),
-                    $notificationLog->getNotificationType()
+                    $notificationLog->getNotificationType(),
+                    $notificationLog->getCustomData()
                 );
 
                 // Update notification log with results

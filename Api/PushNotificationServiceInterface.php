@@ -14,6 +14,7 @@ interface PushNotificationServiceInterface
      * @param string|null $imageUrl
      * @param string|null $actionUrl
      * @param string $notificationType
+     * @param array|null $customData
      * @return array
      */
     public function sendToSingleUser(
@@ -22,7 +23,8 @@ interface PushNotificationServiceInterface
         string $message,
         ?string $imageUrl = null,
         ?string $actionUrl = null,
-        string $notificationType = 'general'
+        string $notificationType = 'general',
+        ?array $customData = null
     ): array;
 
     /**
@@ -34,6 +36,7 @@ interface PushNotificationServiceInterface
      * @param string|null $imageUrl
      * @param string|null $actionUrl
      * @param string $notificationType
+     * @param array|null $customData
      * @return array
      */
     public function sendToMultipleUsers(
@@ -42,18 +45,19 @@ interface PushNotificationServiceInterface
         array $filters = [],
         ?string $imageUrl = null,
         ?string $actionUrl = null,
-        string $notificationType = 'general'
+        string $notificationType = 'general',
+        ?array $customData = null
     ): array;
 
     /**
      * Send notification to a specific token
      *
      * @param string $token
-     * @param string $title
      * @param string $message
      * @param string|null $imageUrl
      * @param string|null $actionUrl
      * @param string $notificationType
+     * @param array|null $customData
      * @return array
      */
     public function sendToToken(
@@ -62,7 +66,8 @@ interface PushNotificationServiceInterface
         string $message,
         ?string $imageUrl = null,
         ?string $actionUrl = null,
-        string $notificationType = 'general'
+        string $notificationType = 'general',
+        ?array $customData = null
     ): array;
 }
 

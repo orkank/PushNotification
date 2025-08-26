@@ -45,6 +45,7 @@ class SendMultiple extends Action
             $imageUrl = $this->getRequest()->getParam('image_url');
             $actionUrl = $this->getRequest()->getParam('action_url');
             $notificationType = $this->getRequest()->getParam('notification_type', 'general');
+            $customData = $this->getRequest()->getParam('custom_data');
 
             // Debug: Log input for emoji debugging
             $logger = \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class);
@@ -89,9 +90,23 @@ class SendMultiple extends Action
                 $filters['last_seen_to'] = $lastSeenTo;
             }
 
+            if ($orderQuantity = $this->getRequest()->getParam('order_quantity')) {
+                $filters['order_quantity'] = $orderQuantity;
+            }
+
             // Ensure UTF-8 encoding for emoji support before saving to database
             $title = mb_convert_encoding($title, 'UTF-8', 'auto');
             $message = mb_convert_encoding($message, 'UTF-8', 'auto');
+
+            // Parse custom data if provided
+            $parsedCustomData = null;
+            if ($customData) {
+                if (is_string($customData)) {
+                    $parsedCustomData = json_decode($customData, true);
+                } elseif (is_array($customData)) {
+                    $parsedCustomData = $customData;
+                }
+            }
 
             // Create notification log entry for async processing
             $notificationLog = $this->notificationLogFactory->create();
@@ -99,6 +114,7 @@ class SendMultiple extends Action
             $notificationLog->setMessage($message);
             $notificationLog->setImageUrl($imageUrl ? (string)$imageUrl : null);
             $notificationLog->setActionUrl($actionUrl ? (string)$actionUrl : null);
+            $notificationLog->setCustomData($parsedCustomData);
             $notificationLog->setNotificationType($notificationType);
             $notificationLog->setFilters($filters);
             $notificationLog->setStoreId((int)$this->storeManager->getStore()->getId());

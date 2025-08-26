@@ -174,5 +174,26 @@ class NotificationLog extends AbstractModel implements IdentityInterface
     {
         return $this->setData('processed_at', $processedAt);
     }
+
+    public function getCustomData(): ?array
+    {
+        $customData = $this->getData('custom_data');
+        if (!$customData) {
+            return null;
+        }
+
+        // If it's already an array, return it
+        if (is_array($customData)) {
+            return $customData;
+        }
+
+        // If it's a string, decode it
+        return is_string($customData) ? json_decode($customData, true) : null;
+    }
+
+    public function setCustomData(?array $customData): self
+    {
+        return $this->setData('custom_data', $customData ? json_encode($customData) : null);
+    }
 }
 

@@ -56,14 +56,15 @@ class PushNotificationService implements PushNotificationServiceInterface
         string $message,
         ?string $imageUrl = null,
         ?string $actionUrl = null,
-        string $notificationType = 'general'
+        string $notificationType = 'general',
+        ?array $customData = null
     ): array {
         $tokens = $this->tokenCollectionFactory->create()
             ->addCustomerFilter($customerId)
             ->addActiveFilter()
             ->addStoreFilter((int)$this->storeManager->getStore()->getId());
 
-        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, $customerId);
+        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, $customerId, null, $customData);
     }
 
     public function sendToMultipleUsers(
@@ -72,7 +73,8 @@ class PushNotificationService implements PushNotificationServiceInterface
         array $filters = [],
         ?string $imageUrl = null,
         ?string $actionUrl = null,
-        string $notificationType = 'general'
+        string $notificationType = 'general',
+        ?array $customData = null
     ): array {
         $tokens = $this->tokenCollectionFactory->create()
             ->addActiveFilter()
@@ -81,7 +83,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         // Apply filters
         $tokens = $this->applyFilters($tokens, $filters);
 
-        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, null, $filters);
+        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, null, $filters, $customData);
     }
 
     public function sendToToken(
@@ -90,7 +92,8 @@ class PushNotificationService implements PushNotificationServiceInterface
         string $message,
         ?string $imageUrl = null,
         ?string $actionUrl = null,
-        string $notificationType = 'general'
+        string $notificationType = 'general',
+        ?array $customData = null
     ): array {
         return $this->sendNotificationToTokens(
             [$token],
@@ -98,7 +101,8 @@ class PushNotificationService implements PushNotificationServiceInterface
             $message,
             $imageUrl,
             $actionUrl,
-            $notificationType
+            $notificationType,
+            $customData
         );
     }
 
@@ -110,7 +114,8 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?string $actionUrl,
         string $notificationType,
         ?int $customerId = null,
-        ?array $filters = null
+        ?array $filters = null,
+        ?array $customData = null
     ): array {
         $tokenList = [];
         foreach ($tokens as $token) {
@@ -133,6 +138,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         $notificationLog->setMessage($message);
         $notificationLog->setImageUrl($imageUrl);
         $notificationLog->setActionUrl($actionUrl);
+        $notificationLog->setCustomData($customData);
         $notificationLog->setNotificationType($notificationType);
         $notificationLog->setCustomerId($customerId);
         $notificationLog->setFilters($filters);
@@ -141,7 +147,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         $notificationLog->setStatus('processing');
         $notificationLog->save();
 
-        $result = $this->sendNotificationToTokens($tokenList, $title, $message, $imageUrl, $actionUrl, $notificationType);
+        $result = $this->sendNotificationToTokens($tokenList, $title, $message, $imageUrl, $actionUrl, $notificationType, $customData);
 
         // Update notification log
         $notificationLog->setTotalSent($result['total_sent']);
@@ -161,7 +167,8 @@ class PushNotificationService implements PushNotificationServiceInterface
         string $message,
         ?string $imageUrl,
         ?string $actionUrl,
-        string $notificationType
+        string $notificationType,
+        ?array $customData = null
     ): array {
         // Ensure UTF-8 encoding for emoji support
         $title = mb_convert_encoding($title, 'UTF-8', 'auto');
@@ -200,6 +207,20 @@ class PushNotificationService implements PushNotificationServiceInterface
             // Firebase HTTP v1 API requires individual requests for each token
             foreach ($tokens as $token) {
                 try {
+                    // Build data payload with custom data
+                    $dataPayload = [
+                        'notification_type' => $notificationType,
+                        'click_action' => $actionUrl ?: 'FLUTTER_NOTIFICATION_CLICK'
+                    ];
+
+                    // Add custom data if provided
+                    if ($customData && is_array($customData)) {
+                        foreach ($customData as $key => $value) {
+                            // Ensure all values are strings for Firebase data payload
+                            $dataPayload[$key] = (string)$value;
+                        }
+                    }
+
                     $payload = [
                         'message' => [
                             'token' => $token,
@@ -207,16 +228,13 @@ class PushNotificationService implements PushNotificationServiceInterface
                                 'title' => $title,
                                 'body' => $message
                             ],
-                            'data' => [
-                                'notification_type' => $notificationType,
-                                'click_action' => $actionUrl ?: 'FLUTTER_NOTIFICATION_CLICK'
+                            'data' => $dataPayload,
+                            'android' => [
+                                'priority' => 'high',
+                                'notification' => [
+                                    'sound' => 'default'
+                                ]
                             ],
-                                                    'android' => [
-                            'priority' => 'high',
-                            'notification' => [
-                                'sound' => 'default'
-                            ]
-                        ],
                             'apns' => [
                                 'payload' => [
                                     'aps' => [
@@ -230,10 +248,6 @@ class PushNotificationService implements PushNotificationServiceInterface
 
                     if ($imageUrl) {
                         $payload['message']['notification']['image'] = $imageUrl;
-                    }
-
-                    if ($actionUrl) {
-                        $payload['message']['data']['action_url'] = $actionUrl;
                     }
 
                                         $apiUrl = str_replace('{project_id}', $projectId, self::FIREBASE_API_URL_V1);

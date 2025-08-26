@@ -22,6 +22,7 @@ A comprehensive Magento 2 module for managing and sending push notifications via
 - **Admin Interface**: Complete admin panel for managing tokens and sending notifications
 - **Firebase Integration**: Send notifications via Firebase Cloud Messaging
 - **Advanced Filtering**: Filter users by various criteria when sending bulk notifications
+- **Custom Data Support**: Add custom JSON data to notifications for app-specific functionality
 - **Multi-language Support**: Turkish and English translations
 - **API Service**: Easy integration for other modules
 - **Emoji Support**: Full UTF-8 emoji support in notifications
@@ -94,6 +95,24 @@ $result = $this->pushNotificationService->sendToSingleUser(
     'https://example.com/order/123',
     'order'
 );
+
+// Send notification with custom data
+$customData = [
+    'order_id' => '12345',
+    'total_amount' => '99.99',
+    'delivery_date' => '2024-01-15',
+    'category' => 'electronics'
+];
+
+$result = $this->pushNotificationService->sendToSingleUser(
+    123,
+    'Order Update',
+    'Your order has been shipped!',
+    null,
+    'https://example.com/order/123',
+    'order',
+    $customData
+);
 ```
 
 #### GraphQL with Emojis
@@ -111,6 +130,154 @@ mutation {
     message
   }
 }
+```
+
+## Custom Data Support
+
+This module supports adding custom JSON data to push notifications, allowing you to pass app-specific information that can be used by your mobile application.
+
+### Features
+- ✅ **Raw JSON Input**: Direct JSON input for advanced users
+- ✅ **Key-Value Pairs**: User-friendly key-value interface
+- ✅ **Data Validation**: JSON validation before sending
+- ✅ **String Conversion**: All values automatically converted to strings for Firebase compatibility
+- ✅ **Admin Interface**: Easy-to-use admin forms for both input methods
+
+### Admin Interface
+
+#### Raw JSON Method
+Enter JSON directly in the textarea:
+```json
+{
+  "order_id": "12345",
+  "total_amount": "99.99",
+  "delivery_date": "2024-01-15",
+  "category": "electronics",
+  "user_type": "vip"
+}
+```
+
+#### Key-Value Pairs Method
+Use the user-friendly interface to add key-value pairs:
+- **Key**: `order_id` → **Value**: `12345`
+- **Key**: `total_amount` → **Value**: `99.99`
+- **Key**: `delivery_date` → **Value**: `2024-01-15`
+
+### Firebase Data Payload
+
+Custom data is merged with the default notification data and sent to Firebase:
+
+```json
+{
+  "message": {
+    "token": "device_token_here",
+    "notification": {
+      "title": "Order Update",
+      "body": "Your order has been shipped!"
+    },
+    "data": {
+      "notification_type": "order",
+      "click_action": "https://example.com/order/123",
+      "order_id": "12345",
+      "total_amount": "99.99",
+      "delivery_date": "2024-01-15",
+      "category": "electronics"
+    }
+  }
+}
+```
+
+### Use Cases
+
+#### E-commerce
+```json
+{
+  "order_id": "12345",
+  "total_amount": "99.99",
+  "delivery_date": "2024-01-15",
+  "tracking_number": "1Z999AA1234567890"
+}
+```
+
+#### Social Media
+```json
+{
+  "post_id": "789",
+  "author_id": "456",
+  "post_type": "photo",
+  "comment_count": "5"
+}
+```
+
+#### Gaming
+```json
+{
+  "game_id": "puzzle_quest",
+  "level": "15",
+  "score": "2500",
+  "achievement": "speed_runner"
+}
+```
+
+### API Usage Examples
+
+#### Single User with Custom Data
+```php
+$customData = [
+    'order_id' => '12345',
+    'total_amount' => '99.99',
+    'delivery_date' => '2024-01-15'
+];
+
+$result = $this->pushNotificationService->sendToSingleUser(
+    123,
+    'Order Update',
+    'Your order has been shipped!',
+    null,
+    'https://example.com/order/123',
+    'order',
+    $customData
+);
+```
+
+#### Multiple Users with Custom Data
+```php
+$customData = [
+    'promotion_id' => 'SUMMER2024',
+    'discount' => '20',
+    'expires' => '2024-08-31'
+];
+
+$filters = ['user_type' => 'member'];
+
+$result = $this->pushNotificationService->sendToMultipleUsers(
+    'Summer Sale!',
+    'Get 20% off on all items!',
+    $filters,
+    'https://example.com/sale-banner.jpg',
+    'https://example.com/summer-sale',
+    'promotion',
+    $customData
+);
+```
+
+#### Direct Token with Custom Data
+```php
+$customData = [
+    'chat_room_id' => 'room_123',
+    'sender_id' => 'user_456',
+    'message_type' => 'text'
+];
+
+$result = $this->pushNotificationService->sendToToken(
+    'device_token_here',
+    'New Message',
+    'John sent you a message',
+    null,
+    'https://example.com/chat/room_123',
+    'chat',
+    $customData
+);
 ```
 
 ### Troubleshooting

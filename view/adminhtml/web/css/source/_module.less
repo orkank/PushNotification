@@ -46,3 +46,44 @@
 .admin__field-control {
     position: relative;
 }
+
+// Custom data styling
+.keyvalue-pair {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f8f8f8;
+    border: 1px solid #e3e3e3;
+    border-radius: 4px;
+
+    input {
+        flex: 1;
+        margin-right: 10px;
+    }
+}
+
+.action-remove {
+    background: #e02b27;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+
+    &:hover {
+        background: #c01b17;
+    }
+}
+
+#add_keyvalue_pair {
+    margin-top: 10px;
+}
+
+.admin__field-note {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}

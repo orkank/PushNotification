@@ -19,6 +19,7 @@
     <div class="admin__page-section-content">
         <div class="admin__page-section-item admin__page-section-item-content">
             <form id="single-notification-form" method="post" action="<?= $block->escapeUrl($block->getSendUrl()) ?>" class="admin__page-section" accept-charset="utf-8">
+                <input name="form_key" type="hidden" value="<?= $block->escapeHtmlAttr($block->getFormKey()) ?>">
                 <div class="admin__field-set admin__field-set-group">
                     <div class="admin__fieldset">
                         <div class="admin__field admin__field-option _required">
@@ -79,6 +80,49 @@
                                     <option value="order"><?= $block->escapeHtml(__('Order')) ?></option>
                                     <option value="news"><?= $block->escapeHtml(__('News')) ?></option>
                                 </select>
+                            </div>
+                        </div>
+
+                        <div class="admin__field admin__field-option">
+                            <label class="admin__field-label" for="custom_data_type">
+                                <span><?= $block->escapeHtml(__('Custom Data (Optional)')) ?></span>
+                            </label>
+                            <div class="admin__field-control">
+                                <select name="custom_data_type" id="custom_data_type" class="admin__control-select">
+                                    <option value=""><?= $block->escapeHtml(__('No Custom Data')) ?></option>
+                                    <option value="raw"><?= $block->escapeHtml(__('Raw JSON')) ?></option>
+                                    <option value="keyvalue"><?= $block->escapeHtml(__('Key-Value Pairs')) ?></option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="admin__field admin__field-option" id="custom_data_raw_container" style="display: none;">
+                            <label class="admin__field-label" for="custom_data_raw">
+                                <span><?= $block->escapeHtml(__('Raw JSON Data')) ?></span>
+                            </label>
+                            <div class="admin__field-control">
+                                <textarea name="custom_data_raw" id="custom_data_raw" class="admin__control-textarea" rows="4" placeholder='{"key": "value", "number": 123}'></textarea>
+                                <div class="admin__field-note">
+                                    <span><?= $block->escapeHtml(__('Enter valid JSON format. All values will be converted to strings.')) ?></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="admin__field admin__field-option" id="custom_data_keyvalue_container" style="display: none;">
+                            <label class="admin__field-label">
+                                <span><?= $block->escapeHtml(__('Key-Value Pairs')) ?></span>
+                            </label>
+                            <div class="admin__field-control">
+                                <div id="keyvalue_pairs">
+                                    <div class="keyvalue-pair">
+                                        <input type="text" name="custom_data_keys[]" class="admin__control-text" placeholder="<?= $block->escapeHtmlAttr(__('Key')) ?>" style="width: 45%; margin-right: 10px;">
+                                        <input type="text" name="custom_data_values[]" class="admin__control-text" placeholder="<?= $block->escapeHtmlAttr(__('Value')) ?>" style="width: 45%;">
+                                        <button type="button" class="action-remove" style="margin-left: 10px;"><?= $block->escapeHtml(__('Remove')) ?></button>
+                                    </div>
+                                </div>
+                                <button type="button" id="add_keyvalue_pair" class="action-secondary" style="margin-top: 10px;">
+                                    <?= $block->escapeHtml(__('Add Key-Value Pair')) ?>
+                                </button>
                             </div>
                         </div>
                     </div>
