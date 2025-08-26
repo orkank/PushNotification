@@ -1,0 +1,30 @@
+extend type Mutation {
+    registerPushNotificationToken(input: RegisterPushNotificationTokenInput!): RegisterPushNotificationTokenOutput @resolver(class: "IDangerous\\PushNotification\\Model\\Resolver\\RegisterPushNotificationToken") @doc(description: "Register push notification token. If user is authenticated, token will be associated with customer account. If not authenticated, token will be registered as guest.")
+    unregisterPushNotificationToken(input: UnregisterPushNotificationTokenInput!): UnregisterPushNotificationTokenOutput @resolver(class: "IDangerous\\PushNotification\\Model\\Resolver\\UnregisterPushNotificationToken") @doc(description: "Unregister push notification token")
+}
+
+input RegisterPushNotificationTokenInput {
+    token: String! @doc(description: "APN/FCM Token")
+    device_type: String! @doc(description: "Device type (ios/android)")
+    device_id: String @doc(description: "Device ID")
+    device_model: String @doc(description: "Device model")
+    os_version: String @doc(description: "OS version")
+    app_version: String @doc(description: "App version")
+}
+
+input UnregisterPushNotificationTokenInput {
+    token: String! @doc(description: "APN/FCM Token")
+}
+
+type RegisterPushNotificationTokenOutput {
+    success: Boolean!
+    message: String
+    customer_id: Int @doc(description: "Customer ID if user is authenticated, null for guests")
+    is_guest: Boolean! @doc(description: "Whether the token was registered as guest")
+}
+
+type UnregisterPushNotificationTokenOutput {
+    success: Boolean!
+    message: String
+}
+

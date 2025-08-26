@@ -1,0 +1,81 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
+    <system>
+        <section id="idangerous_pushnotification" translate="label" type="text" sortOrder="100" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Push Notifications</label>
+            <tab>idangerous</tab>
+            <resource>IDangerous_PushNotification::config</resource>
+
+            <group id="firebase" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>Firebase Configuration (HTTP v1 API)</label>
+
+                <field id="enabled" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Enable Push Notifications</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
+
+                <field id="project_id" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Firebase Project ID</label>
+                    <comment>Enter your Firebase project ID (e.g., my-project-12345)</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+
+                <field id="service_account_json" translate="label" type="textarea" sortOrder="30" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Service Account JSON</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <comment><![CDATA[
+                        Paste the entire JSON content of your Firebase service account key file.<br/>
+                        <strong>How to get this:</strong><br/>
+                        1. Go to Firebase Console → Project Settings → Service Accounts<br/>
+                        2. Click "Generate new private key"<br/>
+                        3. Copy the entire JSON content and paste it here<br/>
+                        <strong>Note:</strong> This replaces the legacy server key for Firebase HTTP v1 API
+                    ]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+
+                <field id="server_key" translate="label" type="obscure" sortOrder="40" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Firebase Server Key (Legacy - Deprecated)</label>
+                    <backend_model>Magento\Config\Model\Config\Backend\Encrypted</backend_model>
+                    <comment><![CDATA[
+                        <strong style="color: red;">DEPRECATED:</strong> Legacy Firebase server key is no longer supported.<br/>
+                        Please use Service Account JSON above for Firebase HTTP v1 API.<br/>
+                        This field is kept for backward compatibility only.
+                    ]]></comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+
+            <group id="general" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                <label>General Settings</label>
+
+                <field id="max_tokens_per_request" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Max Tokens Per Request</label>
+                    <validate>validate-number validate-greater-than-zero</validate>
+                    <comment>Maximum number of tokens to send in a single Firebase request (max 1000)</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+
+                <field id="notification_sound" translate="label" type="text" sortOrder="20" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Default Notification Sound</label>
+                    <comment>Default sound for notifications (e.g., "default")</comment>
+                    <depends>
+                        <field id="enabled">1</field>
+                    </depends>
+                </field>
+            </group>
+        </section>
+    </system>
+</config>
+
+
+
+

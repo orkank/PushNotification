@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <preference for="IDangerous\PushNotification\Api\PushNotificationServiceInterface" type="IDangerous\PushNotification\Model\Service\PushNotificationService"/>
+
+    <type name="Magento\Framework\Console\CommandListInterface">
+        <arguments>
+            <argument name="commands" xsi:type="array">
+                <item name="push_notification_process_queue" xsi:type="object">IDangerous\PushNotification\Console\Command\ProcessNotificationQueue</item>
+            </argument>
+        </arguments>
+    </type>
+</config>
+

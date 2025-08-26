@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <argument name="data" xsi:type="array">
+        <item name="js_config" xsi:type="array">
+            <item name="provider" xsi:type="string">idangerous_pushnotification_tokens_listing.idangerous_pushnotification_tokens_listing_data_source</item>
+            <item name="deps" xsi:type="string">idangerous_pushnotification_tokens_listing.idangerous_pushnotification_tokens_listing_data_source</item>
+        </item>
+        <item name="spinner" xsi:type="string">idangerous_pushnotification_tokens_columns</item>
+    </argument>
+    <dataSource name="idangerous_pushnotification_tokens_listing_data_source">
+        <argument name="dataProvider" xsi:type="configurableObject">
+            <argument name="class" xsi:type="string">IDangerous\PushNotification\Ui\DataProvider\TokenDataProvider</argument>
+            <argument name="name" xsi:type="string">idangerous_pushnotification_tokens_listing_data_source</argument>
+            <argument name="primaryFieldName" xsi:type="string">entity_id</argument>
+            <argument name="requestFieldName" xsi:type="string">id</argument>
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="component" xsi:type="string">Magento_Ui/js/grid/provider</item>
+                    <item name="update_url" xsi:type="url" path="mui/index/render"/>
+                </item>
+            </argument>
+        </argument>
+        <argument name="data" xsi:type="array">
+            <item name="js_config" xsi:type="array">
+                <item name="provider" xsi:type="string">idangerous_pushnotification_tokens_listing.idangerous_pushnotification_tokens_listing_data_source</item>
+            </item>
+        </argument>
+    </dataSource>
+    <columns name="idangerous_pushnotification_tokens_columns">
+        <selectionsColumn name="ids">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="indexField" xsi:type="string">entity_id</item>
+                </item>
+            </argument>
+        </selectionsColumn>
+        <column name="entity_id">
+            <settings>
+                <filter>textRange</filter>
+                <sorting>asc</sorting>
+                <label translate="true">ID</label>
+            </settings>
+        </column>
+        <column name="token">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Token</label>
+            </settings>
+        </column>
+        <column name="customer_id">
+            <settings>
+                <filter>textRange</filter>
+                <label translate="true">Customer ID</label>
+            </settings>
+        </column>
+        <column name="customer_email">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Customer Email</label>
+            </settings>
+        </column>
+        <column name="device_type">
+            <settings>
+                <filter>select</filter>
+                <options class="IDangerous\PushNotification\Model\Config\Source\DeviceType"/>
+                <label translate="true">Device Type</label>
+            </settings>
+        </column>
+        <column name="device_model">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Device Model</label>
+            </settings>
+        </column>
+        <column name="device_version">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">Device Version</label>
+            </settings>
+        </column>
+        <column name="app_version">
+            <settings>
+                <filter>text</filter>
+                <label translate="true">App Version</label>
+            </settings>
+        </column>
+        <column name="is_active" component="Magento_Ui/js/grid/columns/select">
+            <settings>
+                <filter>select</filter>
+                <options class="Magento\Config\Model\Config\Source\Yesno"/>
+                <dataType>select</dataType>
+                <label translate="true">Active</label>
+            </settings>
+        </column>
+        <column name="created_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings>
+                <filter>dateRange</filter>
+                <dataType>date</dataType>
+                <label translate="true">Created At</label>
+            </settings>
+        </column>
+        <column name="last_seen_at" class="Magento\Ui\Component\Listing\Columns\Date" component="Magento_Ui/js/grid/columns/date">
+            <settings>
+                <filter>dateRange</filter>
+                <dataType>date</dataType>
+                <label translate="true">Last Seen</label>
+            </settings>
+        </column>
+        <actionsColumn name="actions" class="IDangerous\PushNotification\Ui\Component\Listing\Column\TokenActions">
+            <settings>
+                <indexField>entity_id</indexField>
+                <resizeEnabled>false</resizeEnabled>
+                <resizeDefaultWidth>107</resizeDefaultWidth>
+            </settings>
+        </actionsColumn>
+    </columns>
+</listing>

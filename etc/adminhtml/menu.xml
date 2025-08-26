@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="IDangerous_PushNotification::push_notification"
+             title="Push Notifications"
+             translate="title"
+             module="IDangerous_PushNotification"
+             sortOrder="60"
+             parent="IDangerous_Sms::sms"
+             resource="IDangerous_PushNotification::push_notification"/>
+
+        <add id="IDangerous_PushNotification::notification_tokens"
+             title="List Notification Tokens"
+             translate="title"
+             module="IDangerous_PushNotification"
+             sortOrder="10"
+             parent="IDangerous_PushNotification::push_notification"
+             action="idangerous_pushnotification/tokens/index"
+             resource="IDangerous_PushNotification::tokens"/>
+
+        <add id="IDangerous_PushNotification::send_single_notification"
+             title="Send Single Notification"
+             translate="title"
+             module="IDangerous_PushNotification"
+             sortOrder="20"
+             parent="IDangerous_PushNotification::push_notification"
+             action="idangerous_pushnotification/notification/single"
+             resource="IDangerous_PushNotification::send_notification"/>
+
+        <add id="IDangerous_PushNotification::send_multiple_notifications"
+             title="Send Multiple Notifications"
+             translate="title"
+             module="IDangerous_PushNotification"
+             sortOrder="30"
+             parent="IDangerous_PushNotification::push_notification"
+             action="idangerous_pushnotification/notification/multiple"
+             resource="IDangerous_PushNotification::send_notification"/>
+
+        <add id="IDangerous_PushNotification::notification_logs"
+             title="Notification Logs"
+             translate="title"
+             module="IDangerous_PushNotification"
+             sortOrder="40"
+             parent="IDangerous_PushNotification::push_notification"
+             action="idangerous_pushnotification/logs/index"
+             resource="IDangerous_PushNotification::manage_tokens"/>
+    </menu>
+</config>
+
