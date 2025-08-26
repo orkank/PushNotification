@@ -1,5 +1,18 @@
 # IDangerous PushNotification Module
 
+> ⚠️ **DEVELOPMENT VERSION** ⚠️
+>
+> **This module is currently in active development and is NOT ready for production use.**
+>
+> - 🚧 Features may be incomplete or unstable
+> - 🔄 API interfaces may change without notice
+> - 🐛 Bugs and issues are expected
+> - 📝 Documentation may be outdated
+>
+> **For testing and development purposes only. Use at your own risk.**
+
+---
+
 A comprehensive Magento 2 module for managing and sending push notifications via Firebase Cloud Messaging (FCM).
 
 ## Features
@@ -295,11 +308,16 @@ When sending multiple notifications, you can filter by:
 - Firebase Cloud Messaging account
 - Valid Firebase Server Key
 
-## Support
+### Non-Commercial Use
+- This software is free for non-commercial use
+- You may copy, distribute and modify the software as long as you track changes/dates in source files
+- Any modifications must be made available under the same license terms
 
-For support and questions, please contact the development team.
+### Commercial Use
+- Commercial use of this software requires explicit permission from the author
+- Please contact [Orkan Köylü](orkan.koylu@gmail.com) for commercial licensing inquiries
+- Usage without proper licensing agreement is strictly prohibited
 
-## License
+Copyright (c) 2025 Orkan Köylü. All Rights Reserved.
 
-This module is proprietary software developed by iDangerous.
-
+[Developer: Orkan Köylü](orkan.koylu@gmail.com)
