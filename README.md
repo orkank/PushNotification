@@ -1,17 +1,4 @@
-# IDangerous PushNotification Module
-
-> ⚠️ **DEVELOPMENT VERSION** ⚠️
->
-> **This module is currently in active development and is NOT ready for production use.**
->
-> - 🚧 Features may be incomplete or unstable
-> - 🔄 API interfaces may change without notice
-> - 🐛 Bugs and issues are expected
-> - 📝 Documentation may be outdated
->
-> **For testing and development purposes only. Use at your own risk.**
-
----
+# Magento2 Firebase PushNotification Module
 
 A comprehensive Magento 2 module for managing and sending push notifications via Firebase Cloud Messaging (FCM).
 
