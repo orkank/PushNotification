@@ -35,6 +35,10 @@ class SendSingle extends Action
             $actionUrl = $this->getRequest()->getParam('action_url');
             $notificationType = $this->getRequest()->getParam('notification_type', 'general');
             $customData = $this->getRequest()->getParam('custom_data');
+            $silentParam = $this->getRequest()->getParam('silent');
+            $badgeParam = $this->getRequest()->getParam('badge');
+            $silent = $silentParam !== null ? (bool)$silentParam : null;
+            $badge = $badgeParam !== null && $badgeParam !== '' ? (int)$badgeParam : null;
 
             // Ensure UTF-8 encoding for emoji support
             $title = mb_convert_encoding($title, 'UTF-8', 'auto');
@@ -64,7 +68,9 @@ class SendSingle extends Action
                 $imageUrl ? (string)$imageUrl : null,
                 $actionUrl ? (string)$actionUrl : null,
                 $notificationType,
-                $parsedCustomData
+                $parsedCustomData,
+                $silent,
+                $badge
             );
 
             return $resultJson->setData($result);

@@ -24,7 +24,9 @@ interface PushNotificationServiceInterface
         ?string $imageUrl = null,
         ?string $actionUrl = null,
         string $notificationType = 'general',
-        ?array $customData = null
+        ?array $customData = null,
+        ?bool $silent = null,
+        ?int $badge = null
     ): array;
 
     /**
@@ -46,7 +48,9 @@ interface PushNotificationServiceInterface
         ?string $imageUrl = null,
         ?string $actionUrl = null,
         string $notificationType = 'general',
-        ?array $customData = null
+        ?array $customData = null,
+        ?bool $silent = null,
+        ?int $badge = null
     ): array;
 
     /**
@@ -67,7 +71,9 @@ interface PushNotificationServiceInterface
         ?string $imageUrl = null,
         ?string $actionUrl = null,
         string $notificationType = 'general',
-        ?array $customData = null
+        ?array $customData = null,
+        ?bool $silent = null,
+        ?int $badge = null
     ): array;
 }
 

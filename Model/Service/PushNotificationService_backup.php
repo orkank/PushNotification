@@ -58,15 +58,14 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?string $actionUrl = null,
         string $notificationType = 'general',
         ?array $customData = null,
-        ?bool $silent = null,
-        ?int $badge = null
+        bool $silent = false, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null
     ): array {
         $tokens = $this->tokenCollectionFactory->create()
             ->addCustomerFilter($customerId)
             ->addActiveFilter()
             ->addStoreFilter((int)$this->storeManager->getStore()->getId());
 
-        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, $customerId, null, $customData, $silent, $badge);
+        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, $customerId, null, $customData, $silent, $badgeType, $badgeCount, $badgeType, $badgeCount);
     }
 
     public function sendToMultipleUsers(
@@ -77,8 +76,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?string $actionUrl = null,
         string $notificationType = 'general',
         ?array $customData = null,
-        ?bool $silent = null,
-        ?int $badge = null
+        bool $silent = false, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null
     ): array {
         $tokens = $this->tokenCollectionFactory->create()
             ->addActiveFilter()
@@ -87,7 +85,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         // Apply filters
         $tokens = $this->applyFilters($tokens, $filters);
 
-        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, null, $filters, $customData, $silent, $badge);
+        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, null, $filters, $customData, $silent, $badgeType, $badgeCount, $badgeType, $badgeCount);
     }
 
     public function sendToToken(
@@ -98,8 +96,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?string $actionUrl = null,
         string $notificationType = 'general',
         ?array $customData = null,
-        ?bool $silent = null,
-        ?int $badge = null
+        bool $silent = false, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null
     ): array {
         return $this->sendNotificationToTokens(
             [$token],
@@ -109,8 +106,7 @@ class PushNotificationService implements PushNotificationServiceInterface
             $actionUrl,
             $notificationType,
             $customData,
-            $silent,
-            $badge
+            $silent
         );
     }
 
@@ -124,8 +120,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?int $customerId = null,
         ?array $filters = null,
         ?array $customData = null,
-        ?bool $silent = null,
-        ?int $badge = null
+        bool $silent = false, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null
     ): array {
         $tokenList = [];
         foreach ($tokens as $token) {
@@ -157,7 +152,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         $notificationLog->setStatus('processing');
         $notificationLog->save();
 
-        $result = $this->sendNotificationToTokens($tokenList, $title, $message, $imageUrl, $actionUrl, $notificationType, $customData, $silent, $badge);
+        $result = $this->sendNotificationToTokens($tokenList, $title, $message, $imageUrl, $actionUrl, $notificationType, $customData, $silent, $badgeType, $badgeCount, $badgeType, $badgeCount);
 
         // Update notification log
         $notificationLog->setTotalSent($result['total_sent']);
@@ -179,8 +174,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?string $actionUrl,
         string $notificationType,
         ?array $customData = null,
-        ?bool $silent = null,
-        ?int $badge = null
+        bool $silent = false, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null, ?string $badgeType = null, ?int $badgeCount = null
     ): array {
         // Ensure UTF-8 encoding for emoji support
         $title = mb_convert_encoding($title, 'UTF-8', 'auto');
@@ -236,41 +230,50 @@ class PushNotificationService implements PushNotificationServiceInterface
                     $payload = [
                         'message' => [
                             'token' => $token,
-                            'notification' => [
-                                'title' => $title,
-                                'body' => $message
-                            ],
-                            'data' => $dataPayload,
-                            'android' => [
-                                'priority' => 'high',
-                                'notification' => []
-                            ],
-                            'apns' => [
-                                'payload' => [
-                                    'aps' => []
-                                ]
-                            ]
+                            'data' => $dataPayload
                         ]
                     ];
 
-                    // Handle sound/silent
                     if (!$silent) {
-                        $payload['message']['android']['notification']['sound'] = 'default';
-                        $payload['message']['apns']['payload']['aps']['sound'] = 'default';
-                    }
+                        // Add notification object for visible notifications
+                        $payload['message']['notification'] = [
+                            'title' => $title,
+                            'body' => $message
+                        ];
 
-                    // Handle badge
-                    if ($badge !== null) {
-                        $payload['message']['apns']['payload']['aps']['badge'] = (int)$badge;
-                        // Android approximate badge via notification_count
-                        $payload['message']['android']['notification']['notification_count'] = (int)$badge;
+                        if ($imageUrl) {
+                            $payload['message']['notification']['image'] = $imageUrl;
+                        }
+
+                        // Add platform-specific settings for visible notifications
+                        $payload['message']['android'] = [
+                            'priority' => 'high',
+                            'notification' => [
+                                'sound' => 'default'
+                            ]
+                        ];
+
+                        $payload['message']['apns'] = [
+                            'payload' => [
+                                'aps' => [
+                                    'sound' => 'default',
+                                    'badge' => 1
+                                ]
+                            ]
+                        ];
                     } else {
-                        // Preserve previous default if none provided
-                        $payload['message']['apns']['payload']['aps']['badge'] = 1;
-                    }
+                        // For silent notifications, add minimal platform settings
+                        $payload['message']['android'] = [
+                            'priority' => 'high'
+                        ];
 
-                    if ($imageUrl) {
-                        $payload['message']['notification']['image'] = $imageUrl;
+                        $payload['message']['apns'] = [
+                            'payload' => [
+                                'aps' => [
+                                    'content-available' => 1
+                                ]
+                            ]
+                        ];
                     }
 
                                         $apiUrl = str_replace('{project_id}', $projectId, self::FIREBASE_API_URL_V1);
@@ -524,4 +527,3 @@ class PushNotificationService implements PushNotificationServiceInterface
 
         return $jsonString;
     }
-}

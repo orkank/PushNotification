@@ -84,6 +84,24 @@
                         </div>
 
                         <div class="admin__field admin__field-option">
+                            <label class="admin__field-label" for="silent">
+                                <span><?= $block->escapeHtml(__('Silent (no sound)')) ?></span>
+                            </label>
+                            <div class="admin__field-control">
+                                <input type="checkbox" name="silent" id="silent" value="1">
+                            </div>
+                        </div>
+
+                        <div class="admin__field admin__field-option">
+                            <label class="admin__field-label" for="badge">
+                                <span><?= $block->escapeHtml(__('Badge (Optional)')) ?></span>
+                            </label>
+                            <div class="admin__field-control">
+                                <input type="number" name="badge" id="badge" class="admin__control-text" min="0" step="1" placeholder="<?= $block->escapeHtmlAttr(__('e.g. 1')) ?>">
+                            </div>
+                        </div>
+
+                        <div class="admin__field admin__field-option">
                             <label class="admin__field-label" for="custom_data_type">
                                 <span><?= $block->escapeHtml(__('Custom Data (Optional)')) ?></span>
                             </label>

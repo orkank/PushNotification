@@ -74,19 +74,13 @@
 
                         <div class="admin__field admin__field-option">
                             <label class="admin__field-label" for="silent">
-                                <span><?= $block->escapeHtml(__('Silent (no sound)')) ?></span>
+                                <span><?= $block->escapeHtml(__('Silent Notification')) ?></span>
                             </label>
                             <div class="admin__field-control">
-                                <input type="checkbox" name="silent" id="silent" value="1">
-                            </div>
-                        </div>
-
-                        <div class="admin__field admin__field-option">
-                            <label class="admin__field-label" for="badge">
-                                <span><?= $block->escapeHtml(__('Badge (Optional)')) ?></span>
-                            </label>
-                            <div class="admin__field-control">
-                                <input type="number" name="badge" id="badge" class="admin__control-text" min="0" step="1" placeholder="<?= $block->escapeHtmlAttr(__('e.g. 1')) ?>">
+                                <div class="admin__field-option">
+                                    <input type="checkbox" name="silent" id="silent" value="1" class="admin__control-checkbox">
+                                    <label for="silent"><?= $block->escapeHtml(__('Send as silent notification (data-only, no visible alert)')) ?></label>
+                                </div>
                             </div>
                         </div>
 
