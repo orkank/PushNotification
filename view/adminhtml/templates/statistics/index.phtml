@@ -1,0 +1,309 @@
+<?php
+/** @var \IDangerous\PushNotification\Block\Adminhtml\Statistics $block */
+$totalTokens = $block->getTotalTokens();
+$activeTokens = $block->getActiveTokens();
+$registeredUsers = $block->getRegisteredUsers();
+$guestUsers = $block->getGuestUsers();
+$deviceTypeDistribution = $block->getDeviceTypeDistribution();
+$deviceModelDistribution = $block->getDeviceModelDistribution();
+$appVersionDistribution = $block->getAppVersionDistribution();
+$lastSeenStats = $block->getLastSeenStats();
+$newTokensToday = $block->getNewTokensToday();
+$newTokensThisWeek = $block->getNewTokensThisWeek();
+$newTokensThisMonth = $block->getNewTokensThisMonth();
+?>
+
+<style>
+.statistics-container {
+    background: #f8f9fa;
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-left: 4px solid #6c757d;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.stat-card.primary { border-left-color: #007bff; }
+.stat-card.success { border-left-color: #28a745; }
+.stat-card.warning { border-left-color: #ffc107; }
+.stat-card.info { border-left-color: #17a2b8; }
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #495057;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin: 8px 0 0 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chart-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #495057;
+    margin: 0 0 20px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .chart-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.distribution-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.distribution-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.distribution-item:last-child {
+    border-bottom: none;
+}
+
+.distribution-label {
+    color: #495057;
+    font-weight: 500;
+}
+
+.distribution-count {
+    background: #e9ecef;
+    color: #495057;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6c757d, #495057);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.stats-summary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.summary-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 0 15px 0;
+}
+
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.summary-stat {
+    text-align: center;
+}
+
+.summary-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+.summary-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin: 5px 0 0 0;
+}
+</style>
+
+<div class="statistics-container">
+    <div class="stats-summary">
+        <h2 class="summary-title">📊 Push Notification Analytics</h2>
+        <div class="summary-stats">
+            <div class="summary-stat">
+                <div class="summary-number"><?= $totalTokens ?></div>
+                <div class="summary-label">Total Tokens</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-number"><?= $activeTokens ?></div>
+                <div class="summary-label">Active Tokens</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-number"><?= $registeredUsers ?></div>
+                <div class="summary-label">Registered Users</div>
+            </div>
+            <div class="summary-stat">
+                <div class="summary-number"><?= $guestUsers ?></div>
+                <div class="summary-label">Guest Users</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card primary">
+            <div class="stat-number"><?= $newTokensToday ?></div>
+            <div class="stat-label">New Tokens Today</div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-number"><?= $newTokensThisWeek ?></div>
+            <div class="stat-label">New This Week</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-number"><?= $newTokensThisMonth ?></div>
+            <div class="stat-label">New This Month</div>
+        </div>
+        <div class="stat-card info">
+            <div class="stat-number"><?= round(($activeTokens / max($totalTokens, 1)) * 100, 1) ?>%</div>
+            <div class="stat-label">Active Rate</div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-container">
+            <h3 class="chart-title">📱 Device Type Distribution</h3>
+            <ul class="distribution-list">
+                <?php foreach ($deviceTypeDistribution as $device): ?>
+                <li class="distribution-item">
+                    <span class="distribution-label">
+                        <?= ucfirst($device['device_type']) ?>
+                    </span>
+                    <span class="distribution-count"><?= $device['count'] ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+
+        <div class="chart-container">
+            <h3 class="chart-title">📊 Last Seen Activity</h3>
+            <ul class="distribution-list">
+                <li class="distribution-item">
+                    <span class="distribution-label">Last 24 Hours</span>
+                    <span class="distribution-count"><?= $lastSeenStats['last_24h'] ?></span>
+                </li>
+                <li class="distribution-item">
+                    <span class="distribution-label">Last 7 Days</span>
+                    <span class="distribution-count"><?= $lastSeenStats['last_7d'] ?></span>
+                </li>
+                <li class="distribution-item">
+                    <span class="distribution-label">Last 30 Days</span>
+                    <span class="distribution-count"><?= $lastSeenStats['last_30d'] ?></span>
+                </li>
+                <li class="distribution-item">
+                    <span class="distribution-label">Last 90 Days</span>
+                    <span class="distribution-count"><?= $lastSeenStats['last_90d'] ?></span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-container">
+            <h3 class="chart-title">📱 Top 50 Device Models</h3>
+            <ul class="distribution-list">
+                <?php foreach ($deviceModelDistribution as $device): ?>
+                <li class="distribution-item">
+                    <span class="distribution-label"><?= htmlspecialchars($device['device_model']) ?></span>
+                    <span class="distribution-count"><?= $device['count'] ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+
+        <div class="chart-container">
+            <h3 class="chart-title">📱 Top App Versions</h3>
+            <ul class="distribution-list">
+                <?php foreach ($appVersionDistribution as $version): ?>
+                <li class="distribution-item">
+                    <span class="distribution-label"><?= htmlspecialchars($version['app_version']) ?></span>
+                    <span class="distribution-count"><?= $version['count'] ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h3 class="chart-title">👥 User Distribution</h3>
+        <div style="display: flex; gap: 20px; align-items: center;">
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Registered Users</span>
+                    <span><?= $registeredUsers ?> (<?= round(($registeredUsers / max($totalTokens, 1)) * 100, 1) ?>%)</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: <?= round(($registeredUsers / max($totalTokens, 1)) * 100, 1) ?>%"></div>
+                </div>
+            </div>
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Guest Users</span>
+                    <span><?= $guestUsers ?> (<?= round(($guestUsers / max($totalTokens, 1)) * 100, 1) ?>%)</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: <?= round(($guestUsers / max($totalTokens, 1)) * 100, 1) ?>%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

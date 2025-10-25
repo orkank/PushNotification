@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <referenceContainer name="content">
+            <block class="IDangerous\PushNotification\Block\Adminhtml\Statistics" name="push_notification_statistics" template="IDangerous_PushNotification::statistics/index.phtml"/>
+        </referenceContainer>
+    </body>
+</page>

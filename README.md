@@ -13,6 +13,9 @@ A comprehensive Magento 2 module for managing and sending push notifications via
 - **Multi-language Support**: Turkish and English translations
 - **API Service**: Easy integration for other modules
 - **Emoji Support**: Full UTF-8 emoji support in notifications
+- **Statistics Dashboard**: Comprehensive analytics and reporting
+- **Pagination & Filters**: Advanced token listing with search and pagination
+- **Token Analytics**: Device distribution, user activity, and engagement metrics
 
 ## Emoji Support
 
@@ -364,11 +367,28 @@ mutation {
 
 ## Admin Interface
 
-The module adds three menu items under **Marketing > iDangerous > Push Notifications**:
+The module adds menu items under **Marketing > Push Notifications**:
 
-1. **List Notification Tokens**: View and manage all registered tokens
+1. **List Notification Tokens**: View and manage all registered tokens with advanced filtering and pagination
 2. **Send Single Notification**: Send notification to a specific customer
 3. **Send Multiple Notifications**: Send bulk notifications with filters
+4. **Notification Logs**: View notification history and logs
+5. **Statistics**: Comprehensive analytics dashboard with device and user insights
+
+### Statistics Dashboard Features
+
+- **Overview Metrics**: Total tokens, active tokens, registered vs guest users
+- **Time-based Analytics**: New tokens today, this week, this month
+- **Device Analytics**: Device type distribution, top 50 device models
+- **App Version Tracking**: Most popular app versions
+- **User Activity**: Last seen statistics (24h, 7d, 30d, 90d)
+
+### Token Analytics
+- **Device Distribution**: iOS vs Android ratio
+- **Top Device Models**: Most popular device models (Top 50)
+- **App Version Analysis**: Most used app versions
+- **User Segmentation**: Registered vs guest user analysis
+- **Activity Tracking**: User engagement over time
 
 ## API Usage for Other Modules
 
@@ -454,6 +474,19 @@ When sending multiple notifications, you can filter by:
 - **Customer Group**: Specific customer groups
 - **Last Seen Date**: Date range for last activity
 - **Store**: Specific store (multi-store setup)
+
+## Recent Updates
+
+### Version 2.0 Features (Latest)
+- ✅ **Statistics Dashboard**: Comprehensive analytics with visual charts
+- ✅ **Token Analytics**: Device distribution and user activity insights
+- ✅ **Menu Reorganization**: Moved to Marketing menu for better organization
+- ✅ **Performance Optimization**: Improved database queries and caching
+
+### Technical Improvements
+- **SQL Query Optimization**: Direct database queries for better performance
+- **Security Enhancements**: Input validation and SQL injection protection
+- **Error Handling**: Improved error handling and user feedback
 
 ## Requirements
 

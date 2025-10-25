@@ -7,7 +7,7 @@
              translate="title"
              module="IDangerous_PushNotification"
              sortOrder="60"
-             parent="IDangerous_Sms::sms"
+             parent="Magento_Backend::marketing"
              resource="IDangerous_PushNotification::push_notification"/>
 
         <add id="IDangerous_PushNotification::notification_tokens"
@@ -45,6 +45,15 @@
              parent="IDangerous_PushNotification::push_notification"
              action="idangerous_pushnotification/logs/index"
              resource="IDangerous_PushNotification::manage_tokens"/>
+
+        <add id="IDangerous_PushNotification::notification_statistics"
+             title="Statistics"
+             translate="title"
+             module="IDangerous_PushNotification"
+             sortOrder="50"
+             parent="IDangerous_PushNotification::push_notification"
+             action="idangerous_pushnotification/statistics/index"
+             resource="IDangerous_PushNotification::statistics"/>
     </menu>
 </config>
 
