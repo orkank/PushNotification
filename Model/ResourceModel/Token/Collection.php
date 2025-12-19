@@ -27,12 +27,16 @@ class Collection extends AbstractCollection
 
     public function addActiveFilter(): self
     {
-        return $this->addFieldToFilter('is_active', 1);
+        // Use explicit table prefix to avoid ambiguity when joins are present
+        $this->getSelect()->where('main_table.is_active = ?', 1);
+        return $this;
     }
 
     public function addStoreFilter(int $storeId): self
     {
-        return $this->addFieldToFilter('store_id', $storeId);
+        // Use explicit table prefix to avoid ambiguity when joins are present
+        $this->getSelect()->where('main_table.store_id = ?', $storeId);
+        return $this;
     }
 }
 
