@@ -5,6 +5,8 @@ namespace IDangerous\PushNotification\Model\Service;
 
 use IDangerous\PushNotification\Model\ResourceModel\Token\CollectionFactory;
 use IDangerous\PushNotification\Model\NotificationLogFactory;
+use IDangerous\PushNotification\Model\ResourceModel\NotificationSent as NotificationSentResource;
+use IDangerous\PushNotification\Model\ResourceModel\Token as TokenResource;
 use IDangerous\PushNotification\Api\PushNotificationServiceInterface;
 use Magento\Framework\HTTP\Client\Curl;
 use Magento\Framework\Serialize\Serializer\Json;
@@ -23,6 +25,8 @@ class PushNotificationService implements PushNotificationServiceInterface
 
     private CollectionFactory $tokenCollectionFactory;
     private NotificationLogFactory $notificationLogFactory;
+    private NotificationSentResource $notificationSentResource;
+    private TokenResource $tokenResource;
     private Curl $curl;
     private Json $json;
     private StoreManagerInterface $storeManager;
@@ -33,6 +37,8 @@ class PushNotificationService implements PushNotificationServiceInterface
     public function __construct(
         CollectionFactory $tokenCollectionFactory,
         NotificationLogFactory $notificationLogFactory,
+        NotificationSentResource $notificationSentResource,
+        TokenResource $tokenResource,
         Curl $curl,
         Json $json,
         StoreManagerInterface $storeManager,
@@ -42,6 +48,8 @@ class PushNotificationService implements PushNotificationServiceInterface
     ) {
         $this->tokenCollectionFactory = $tokenCollectionFactory;
         $this->notificationLogFactory = $notificationLogFactory;
+        $this->notificationSentResource = $notificationSentResource;
+        $this->tokenResource = $tokenResource;
         $this->curl = $curl;
         $this->json = $json;
         $this->storeManager = $storeManager;
@@ -78,7 +86,8 @@ class PushNotificationService implements PushNotificationServiceInterface
         string $notificationType = 'general',
         ?array $customData = null,
         ?bool $silent = null,
-        ?int $badge = null
+        ?int $badge = null,
+        $existingLog = null
     ): array {
         $tokens = $this->tokenCollectionFactory->create()
             ->addActiveFilter()
@@ -87,7 +96,7 @@ class PushNotificationService implements PushNotificationServiceInterface
         // Apply filters
         $tokens = $this->applyFilters($tokens, $filters);
 
-        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, null, $filters, $customData, $silent, $badge);
+        return $this->sendNotification($tokens, $title, $message, $imageUrl, $actionUrl, $notificationType, null, $filters, $customData, $silent, $badge, $existingLog);
     }
 
     public function sendToToken(
@@ -125,11 +134,51 @@ class PushNotificationService implements PushNotificationServiceInterface
         ?array $filters = null,
         ?array $customData = null,
         ?bool $silent = null,
-        ?int $badge = null
+        ?int $badge = null,
+        $existingLog = null
     ): array {
         $tokenList = [];
+        $tokenIds = []; // Track token IDs for sent tracking
+        $processedTokens = []; // Track processed tokens to prevent duplicates
+        $customerIds = []; // Track customer IDs from tokens
+
         foreach ($tokens as $token) {
-            $tokenList[] = $token->getToken();
+            $tokenString = $token->getToken();
+            $tokenId = $token->getId();
+
+            // Skip if token was already processed in this batch
+            if (in_array($tokenString, $processedTokens)) {
+                $this->logger->info(sprintf(
+                    'Skipping duplicate token: %s',
+                    substr($tokenString, 0, 20) . '...'
+                ));
+                continue;
+            }
+            $processedTokens[] = $tokenString;
+            $tokenList[] = $tokenString;
+            $tokenIds[] = $tokenId;
+
+            // Collect customer IDs (only non-null ones)
+            $tokenCustomerId = $token->getCustomerId();
+            if ($tokenCustomerId) {
+                $customerIds[] = $tokenCustomerId;
+            }
+        }
+
+        // Determine customer_id for log: Only set if $customerId parameter is provided (single user send)
+        // For bulk sends ($customerId is null), always keep customer_id as null regardless of token ownership
+        $logCustomerId = null;
+        if ($customerId !== null) {
+            // Single user send - use the provided customer_id
+            $logCustomerId = $customerId;
+        } elseif (!empty($customerIds)) {
+            // Bulk send - check if all tokens belong to same customer (for logging purposes only)
+            $uniqueCustomerIds = array_unique($customerIds);
+            if (count($uniqueCustomerIds) === 1) {
+                $this->logger->info('PushNotification: Bulk send - all tokens belong to customer ID: ' . reset($uniqueCustomerIds) . ' but keeping customer_id NULL');
+            } else {
+                $this->logger->info('PushNotification: Bulk send - tokens belong to multiple customers, customer_id will be null');
+            }
         }
 
         if (empty($tokenList)) {
@@ -142,30 +191,228 @@ class PushNotificationService implements PushNotificationServiceInterface
             ];
         }
 
-        // Create notification log
-        $notificationLog = $this->notificationLogFactory->create();
-        $notificationLog->setTitle($title);
-        $notificationLog->setMessage($message);
-        $notificationLog->setImageUrl($imageUrl);
-        $notificationLog->setActionUrl($actionUrl);
-        $notificationLog->setCustomData($customData);
-        $notificationLog->setNotificationType($notificationType);
-        $notificationLog->setCustomerId($customerId);
-        $notificationLog->setFilters($filters);
-        $notificationLog->setStoreId((int)$this->storeManager->getStore()->getId());
-        $notificationLog->setCreatedAt($this->dateTime->gmtDate());
-        $notificationLog->setStatus('processing');
-        $notificationLog->save();
+        // Use existing log if provided (from cron), otherwise create new one
+        $isExistingLog = false;
+        if ($existingLog !== null) {
+            $this->logger->info('PushNotification: $existingLog provided, type: ' . get_class($existingLog));
 
-        $result = $this->sendNotificationToTokens($tokenList, $title, $message, $imageUrl, $actionUrl, $notificationType, $customData, $silent, $badge);
+            // Check if it's a valid model instance with an ID
+            $existingLogId = null;
+            if (method_exists($existingLog, 'getId')) {
+                $existingLogId = $existingLog->getId();
+                $this->logger->info('PushNotification: $existingLog->getId() = ' . ($existingLogId ?: 'null/empty'));
+            } else {
+                $this->logger->warning('PushNotification: $existingLog does not have getId() method');
+            }
 
-        // Update notification log
-        $notificationLog->setTotalSent($result['total_sent']);
-        $notificationLog->setTotalFailed($result['total_failed']);
-        $notificationLog->setStatus($result['success'] ? 'completed' : 'failed');
-        $notificationLog->setErrorMessage($result['error_message'] ?? null);
-        $notificationLog->setProcessedAt($this->dateTime->gmtDate());
-        $notificationLog->save();
+            // Also try getData('entity_id') as fallback
+            if (!$existingLogId && method_exists($existingLog, 'getData')) {
+                $existingLogId = $existingLog->getData('entity_id');
+                $this->logger->info('PushNotification: $existingLog->getData("entity_id") = ' . ($existingLogId ?: 'null/empty'));
+            }
+
+            if ($existingLogId) {
+                $notificationLog = $existingLog;
+                $isExistingLog = true;
+                // Ensure status is processing
+                $notificationLog->setStatus('processing');
+                $notificationLog->save();
+                $this->logger->info('PushNotification: Using existing log ID: ' . $notificationLog->getId() . ' (Title: ' . $notificationLog->getTitle() . ')');
+            } else {
+                $this->logger->warning('PushNotification: $existingLog provided but has no ID (getId=' . ($existingLogId ?? 'null') . '), creating new log');
+            }
+        } else {
+            $this->logger->info('PushNotification: $existingLog is null, will create new log');
+        }
+
+        if (!$isExistingLog) {
+            // Calculate content hash for duplicate detection
+            $storeId = (int)$this->storeManager->getStore()->getId();
+            // Sort filters array by keys for consistent hash generation
+            $sortedFilters = $filters;
+            if (is_array($sortedFilters)) {
+                ksort($sortedFilters);
+            }
+            $filtersJson = json_encode($sortedFilters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $contentHash = hash('sha256', $title . '|' . $message . '|' . $filtersJson . '|' . $storeId . '|' . $notificationType);
+
+            // Check for existing log with same content_hash before creating new one
+            // IMPORTANT: Only check for duplicates from admin panel (when existingLog is not provided)
+            // If existingLog is provided by cron/console, use that log regardless of content_hash
+            $existingLogCollection = $this->notificationLogFactory->create()->getCollection();
+            $existingLogCollection->addFieldToFilter('content_hash', $contentHash);
+            $existingLogCollection->addFieldToFilter('status', ['in' => ['pending', 'processing', 'completed']]);
+            $existingLogByHash = $existingLogCollection->getFirstItem();
+
+            if ($existingLogByHash->getId()) {
+                // Found existing log with same content - use it instead of creating new
+                $notificationLog = $existingLogByHash;
+                $isExistingLog = true;
+                $this->logger->info('PushNotification: Found existing log with same content_hash (ID: ' . $notificationLog->getId() . '), reusing it instead of creating new');
+
+                // Ensure status is processing
+                if ($notificationLog->getStatus() === 'completed') {
+                    // If completed, check sent tokens in tracking table - will be handled below
+                    $this->logger->info('PushNotification: Existing log is completed, will check sent tokens in tracking table');
+                } else {
+                    $notificationLog->setStatus('processing');
+                    $notificationLog->save();
+                }
+            } else {
+                // Create notification log only if not found by hash
+                $notificationLog = $this->notificationLogFactory->create();
+                $notificationLog->setTitle($title);
+                $notificationLog->setMessage($message);
+                $notificationLog->setImageUrl($imageUrl);
+                $notificationLog->setActionUrl($actionUrl);
+                $notificationLog->setCustomData($customData);
+                $notificationLog->setNotificationType($notificationType);
+                // Use customer_id from parameter if provided, otherwise use the one determined from tokens
+                $finalCustomerId = $customerId ?? $logCustomerId;
+                $notificationLog->setCustomerId($finalCustomerId);
+                $notificationLog->setFilters($filters);
+                $notificationLog->setStoreId($storeId);
+                $notificationLog->setContentHash($contentHash);
+                $notificationLog->setCreatedAt($this->dateTime->gmtDate());
+                $notificationLog->setStatus('processing');
+                $notificationLog->save();
+                $this->logger->info('PushNotification: Created new log ID: ' . $notificationLog->getId() . ' (Title: ' . $title . ', Customer ID: ' . ($finalCustomerId ?? 'null') . ', Content Hash: ' . $contentHash . ')');
+            }
+        } else {
+            // For existing log, do not update customer_id (it was set during creation)
+            // Ensure content_hash is set if missing
+            if (!$notificationLog->getContentHash()) {
+                $storeId = (int)$this->storeManager->getStore()->getId();
+                // Sort filters array by keys for consistent hash generation
+                $sortedFilters = $filters;
+                if (is_array($sortedFilters)) {
+                    ksort($sortedFilters);
+                }
+                $filtersJson = json_encode($sortedFilters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $contentHash = hash('sha256', $title . '|' . $message . '|' . $filtersJson . '|' . $storeId . '|' . $notificationType);
+                $notificationLog->setContentHash($contentHash);
+                $notificationLog->save();
+                $this->logger->info('PushNotification: Set content_hash for existing log ID ' . $notificationLog->getId() . ': ' . $contentHash);
+            }
+        }
+
+
+        // Check for already sent tokens using the tracking table
+        // This prevents duplicate sends when a completed log is reset to pending
+        // Uses efficient LEFT JOIN to filter out already sent tokens
+        $tokensToSend = $tokenList;
+        $tokenIdsToSend = $tokenIds;
+
+        if ($notificationLog->getId()) {
+            $logId = (int)$notificationLog->getId();
+            $this->logger->info('PushNotification: Checking sent tokens for log ID: ' . $logId);
+
+            // Get unsent tokens using LEFT JOIN (efficient database query)
+            $unsentTokensData = $this->getUnsentTokensForLog($logId, $tokenIds);
+
+            if (count($unsentTokensData) < count($tokenIds)) {
+                // Some tokens were already sent
+                $unsentTokenStrings = array_column($unsentTokensData, 'token');
+                $unsentTokenIds = array_column($unsentTokensData, 'entity_id');
+
+                $skippedCount = count($tokenIds) - count($unsentTokenIds);
+                $this->logger->info('PushNotification: Skipping ' . $skippedCount . ' already sent tokens for log ID: ' . $logId);
+
+                if (empty($unsentTokenIds)) {
+                    // All tokens were already sent - mark as completed and cleanup
+                    $this->logger->info('PushNotification: All tokens already sent for log ID: ' . $logId);
+                    $notificationLog->setStatus('completed');
+                    $notificationLog->setProcessedAt($this->dateTime->gmtDate());
+                    $notificationLog->save();
+
+                    // Cleanup sent records
+                    $this->cleanupSentRecords($logId);
+
+                    return [
+                        'success' => true,
+                        'message' => __('All recipients have already received this notification'),
+                        'total_sent' => 0,
+                        'total_failed' => 0,
+                        'notification_id' => $logId
+                    ];
+                }
+
+                $tokensToSend = $unsentTokenStrings;
+                $tokenIdsToSend = $unsentTokenIds;
+
+                $this->logger->info(sprintf(
+                    'PushNotification: Log ID %d - Sending to %d unsent tokens (skipped %d)',
+                    $logId,
+                    count($tokensToSend),
+                    $skippedCount
+                ));
+            } else {
+                $this->logger->info('PushNotification: Log ID ' . $logId . ' - All ' . count($tokenIds) . ' tokens are unsent');
+            }
+        }
+
+        // If no tokens to send, mark as completed immediately
+        if (empty($tokensToSend)) {
+            $this->logger->info('PushNotification: No tokens to send for log ID ' . $notificationLog->getId() . ', marking as completed');
+            $notificationLog->setStatus('completed');
+            $notificationLog->setProcessedAt($this->dateTime->gmtDate());
+            $notificationLog->save();
+            return [
+                'success' => true,
+                'message' => __('No tokens to send'),
+                'total_sent' => 0,
+                'total_failed' => 0,
+                'notification_id' => $notificationLog->getId()
+            ];
+        }
+
+        $result = null;
+        try {
+            $result = $this->sendNotificationToTokens($tokensToSend, $title, $message, $imageUrl, $actionUrl, $notificationType, $customData, $silent, $badge, $notificationLog->getId() ? (int)$notificationLog->getId() : null, $tokenIdsToSend);
+        } catch (\Exception $e) {
+            // If exception occurs during sending, create error result
+            $this->logger->error('PushNotification: Exception in sendNotificationToTokens for log ID ' . $notificationLog->getId() . ': ' . $e->getMessage());
+            $result = [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'total_sent' => 0,
+                'total_failed' => count($tokensToSend),
+                'error_message' => $e->getMessage()
+            ];
+        }
+
+        // Update notification log - ALWAYS update status to completed or failed
+        // This ensures log is never left in processing state
+        try {
+            $notificationLog->setTotalSent($result['total_sent'] + ($notificationLog->getTotalSent() ?: 0));
+            $notificationLog->setTotalFailed($result['total_failed'] + ($notificationLog->getTotalFailed() ?: 0));
+
+            // Determine final status: if we sent at least one notification successfully, mark as completed
+            // If total_sent > 0, mark as completed even if some failed
+            // Only mark as failed if total_sent is 0 AND we attempted to send
+            if ($result['total_sent'] > 0) {
+                $notificationLog->setStatus('completed');
+            } elseif ($result['total_failed'] > 0 && $result['total_sent'] == 0) {
+                $notificationLog->setStatus('failed');
+                $notificationLog->setErrorMessage($result['error_message'] ?? __('Failed to send notification'));
+            } else {
+                // If no sends and no failures, mark as completed (all tokens were already sent)
+                $notificationLog->setStatus('completed');
+            }
+
+            $notificationLog->setProcessedAt($this->dateTime->gmtDate());
+            $notificationLog->save();
+
+            $this->logger->info('PushNotification: Updated log ID ' . $notificationLog->getId() . ' - Status: ' . $notificationLog->getStatus() . ', Sent: ' . $notificationLog->getTotalSent() . ', Failed: ' . $notificationLog->getTotalFailed());
+
+            // Cleanup sent records if status is completed
+            if ($notificationLog->getStatus() === 'completed') {
+                $this->cleanupSentRecords((int)$notificationLog->getId());
+            }
+        } catch (\Exception $saveException) {
+            // Even if save fails, log it but don't throw - we've done our best
+            $this->logger->error('PushNotification: Failed to update log ID ' . $notificationLog->getId() . ' after sending: ' . $saveException->getMessage());
+        }
 
         $result['notification_id'] = $notificationLog->getId();
         return $result;
@@ -180,8 +427,21 @@ class PushNotificationService implements PushNotificationServiceInterface
         string $notificationType,
         ?array $customData = null,
         ?bool $silent = null,
-        ?int $badge = null
+        ?int $badge = null,
+        ?int $notificationLogId = null,
+        array $tokenIds = []
     ): array {
+        // If no tokens provided, return success with 0 sent
+        if (empty($tokens)) {
+            $this->logger->info('PushNotification: No tokens provided to sendNotificationToTokens');
+            return [
+                'success' => true,
+                'message' => __('No tokens to send'),
+                'total_sent' => 0,
+                'total_failed' => 0
+            ];
+        }
+
         // Ensure UTF-8 encoding for emoji support
         $title = mb_convert_encoding($title, 'UTF-8', 'auto');
         $message = mb_convert_encoding($message, 'UTF-8', 'auto');
@@ -215,6 +475,7 @@ class PushNotificationService implements PushNotificationServiceInterface
             $successCount = 0;
             $failureCount = 0;
             $errors = [];
+            $successfullySentTokens = []; // Track successfully sent tokens
 
             // Firebase HTTP v1 API requires individual requests for each token
             foreach ($tokens as $token) {
@@ -300,18 +561,46 @@ class PushNotificationService implements PushNotificationServiceInterface
 
                     if ($httpStatus === 200 && isset($responseData['name'])) {
                         $successCount++;
+                        $successfullySentTokens[] = $token;
                     } else {
-                        $errorMessage = $responseData['error']['message'] ?? 'Unknown error';
+                        $errorMessage = 'Unknown error';
+                        if (is_array($responseData) && isset($responseData['error']['message'])) {
+                            $errorMessage = $responseData['error']['message'];
+                        }
+
                         $this->logger->error("PushNotification: Failed to send to token", [
                             'error' => $errorMessage,
-                            'http_status' => $httpStatus
+                            'http_status' => $httpStatus,
+                            'response' => $response
                         ]);
+
+                        // Delete token if it's invalid (404 = not found, 400 = invalid argument)
+                        if ($httpStatus === 404 || ($httpStatus === 400 && strpos(strtolower($errorMessage), 'invalid') !== false)) {
+                            $this->deleteInvalidToken($token, $errorMessage);
+                        }
+
                         $failureCount++;
                         $errors[] = "Token: {$errorMessage}";
                     }
                 } catch (\Exception $e) {
                     $failureCount++;
                     $errors[] = "Token {$token}: {$e->getMessage()}";
+                }
+            }
+
+            // Mark successfully sent tokens in tracking table
+            if ($notificationLogId && !empty($tokenIds)) {
+                // Map successful token strings to their IDs
+                $successfulTokenIds = [];
+                foreach ($successfullySentTokens as $sentTokenString) {
+                    $tokenIndex = array_search($sentTokenString, $tokens);
+                    if ($tokenIndex !== false && isset($tokenIds[$tokenIndex])) {
+                        $successfulTokenIds[] = $tokenIds[$tokenIndex];
+                    }
+                }
+
+                if (!empty($successfulTokenIds)) {
+                    $this->markTokensAsSent($notificationLogId, $successfulTokenIds);
                 }
             }
 
@@ -523,5 +812,147 @@ class PushNotificationService implements PushNotificationServiceInterface
         }
 
         return $jsonString;
+    }
+
+    /**
+     * Delete invalid token from database when Firebase rejects it
+     */
+    private function deleteInvalidToken(string $tokenString, string $errorMessage): void
+    {
+        try {
+            $tokenModel = $this->tokenCollectionFactory->create()
+                ->addFieldToFilter('token', $tokenString)
+                ->getFirstItem();
+
+            if ($tokenModel->getId()) {
+                $tokenModel->delete();
+                $this->logger->info("PushNotification: Deleted invalid token", [
+                    'token_id' => $tokenModel->getId(),
+                    'error' => $errorMessage
+                ]);
+            }
+        } catch (\Exception $e) {
+            $this->logger->error("PushNotification: Failed to delete invalid token", [
+                'token' => substr($tokenString, 0, 20) . '...',
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get unsent tokens for a specific notification log
+     * Uses LEFT JOIN to efficiently filter out already sent tokens
+     *
+     * @param int $notificationLogId
+     * @param array $allTokenIds
+     * @return array
+     */
+    private function getUnsentTokensForLog(int $notificationLogId, array $allTokenIds): array
+    {
+        if (empty($allTokenIds)) {
+            return [];
+        }
+
+        try {
+            $connection = $this->notificationSentResource->getConnection();
+            $select = $connection->select()
+                ->from(['t' => $this->tokenResource->getMainTable()], ['entity_id', 'token'])
+                ->joinLeft(
+                    ['ns' => $this->notificationSentResource->getMainTable()],
+                    'ns.token_id = t.entity_id AND ns.notification_log_id = ' . (int)$notificationLogId,
+                    []
+                )
+                ->where('t.entity_id IN (?)', $allTokenIds)
+                ->where('ns.entity_id IS NULL'); // Only unsent tokens
+
+            return $connection->fetchAll($select);
+        } catch (\Exception $e) {
+            $this->logger->error('PushNotification: Error getting unsent tokens: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Mark tokens as sent in the tracking table
+     * Uses batch INSERT for performance
+     *
+     * @param int $notificationLogId
+     * @param array $tokenIds
+     * @return void
+     */
+    private function markTokensAsSent(int $notificationLogId, array $tokenIds): void
+    {
+        if (empty($tokenIds)) {
+            return;
+        }
+
+        try {
+            $connection = $this->notificationSentResource->getConnection();
+            $table = $this->notificationSentResource->getMainTable();
+
+            $batchSize = 1000;
+            $batches = array_chunk($tokenIds, $batchSize);
+
+            foreach ($batches as $batch) {
+                $data = [];
+                foreach ($batch as $tokenId) {
+                    $data[] = [
+                        'notification_log_id' => $notificationLogId,
+                        'token_id' => $tokenId,
+                        'sent_at' => $this->dateTime->gmtDate()
+                    ];
+                }
+
+                // INSERT IGNORE - Skip duplicates
+                $connection->insertOnDuplicate($table, $data, []);
+            }
+
+            $this->logger->info('PushNotification: Marked ' . count($tokenIds) . ' tokens as sent for log ID: ' . $notificationLogId);
+        } catch (\Exception $e) {
+            $this->logger->error('PushNotification: Error marking tokens as sent: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Cleanup sent records for a completed notification log
+     * Called when log status becomes 'completed'
+     *
+     * @param int $notificationLogId
+     * @return void
+     */
+    private function cleanupSentRecords(int $notificationLogId): void
+    {
+        try {
+            $connection = $this->notificationSentResource->getConnection();
+            $deleted = $connection->delete(
+                $this->notificationSentResource->getMainTable(),
+                ['notification_log_id = ?' => $notificationLogId]
+            );
+
+            $this->logger->info('PushNotification: Cleaned up ' . $deleted . ' sent records for log ID: ' . $notificationLogId);
+        } catch (\Exception $e) {
+            $this->logger->error('PushNotification: Error cleaning up sent records: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get count of sent tokens for a notification log
+     *
+     * @param int $notificationLogId
+     * @return int
+     */
+    private function getSentTokenCount(int $notificationLogId): int
+    {
+        try {
+            $connection = $this->notificationSentResource->getConnection();
+            $select = $connection->select()
+                ->from($this->notificationSentResource->getMainTable(), ['COUNT(*)'])
+                ->where('notification_log_id = ?', $notificationLogId);
+
+            return (int)$connection->fetchOne($select);
+        } catch (\Exception $e) {
+            $this->logger->error('PushNotification: Error getting sent token count: ' . $e->getMessage());
+            return 0;
+        }
     }
 }

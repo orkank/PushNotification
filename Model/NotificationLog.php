@@ -175,6 +175,26 @@ class NotificationLog extends AbstractModel implements IdentityInterface
         return $this->setData('processed_at', $processedAt);
     }
 
+    public function getContentHash(): ?string
+    {
+        return $this->getData('content_hash');
+    }
+
+    public function setContentHash(?string $contentHash): self
+    {
+        return $this->setData('content_hash', $contentHash);
+    }
+
+    public function getScheduledAt(): ?string
+    {
+        return $this->getData('scheduled_at');
+    }
+
+    public function setScheduledAt(?string $scheduledAt): self
+    {
+        return $this->setData('scheduled_at', $scheduledAt);
+    }
+
     public function getCustomData(): ?array
     {
         $customData = $this->getData('custom_data');

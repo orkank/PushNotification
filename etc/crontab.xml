@@ -4,5 +4,8 @@
         <job name="idangerous_pushnotification_process_queue" instance="IDangerous\PushNotification\Cron\ProcessNotificationQueue" method="execute">
             <schedule>*/1 * * * *</schedule>
         </job>
+        <job name="idangerous_pushnotification_cleanup_orphaned_sent" instance="IDangerous\PushNotification\Cron\CleanupOrphanedSentRecords" method="execute">
+            <schedule>0 2 * * *</schedule><!-- Daily at 02:00 AM -->
+        </job>
     </group>
 </config>

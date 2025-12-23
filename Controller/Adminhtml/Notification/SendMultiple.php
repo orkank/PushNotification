@@ -8,6 +8,7 @@ use Magento\Backend\App\Action\Context;
 use Magento\Framework\Controller\Result\JsonFactory;
 use IDangerous\PushNotification\Api\PushNotificationServiceInterface;
 use IDangerous\PushNotification\Model\NotificationLogFactory;
+use IDangerous\PushNotification\Model\ResourceModel\NotificationLog\CollectionFactory;
 use Magento\Framework\Stdlib\DateTime\DateTime;
 use Magento\Store\Model\StoreManagerInterface;
 
@@ -16,6 +17,7 @@ class SendMultiple extends Action
     private JsonFactory $resultJsonFactory;
     private PushNotificationServiceInterface $pushNotificationService;
     private NotificationLogFactory $notificationLogFactory;
+    private CollectionFactory $logCollectionFactory;
     private DateTime $dateTime;
     private StoreManagerInterface $storeManager;
 
@@ -24,6 +26,7 @@ class SendMultiple extends Action
         JsonFactory $resultJsonFactory,
         PushNotificationServiceInterface $pushNotificationService,
         NotificationLogFactory $notificationLogFactory,
+        CollectionFactory $logCollectionFactory,
         DateTime $dateTime,
         StoreManagerInterface $storeManager
     ) {
@@ -31,6 +34,7 @@ class SendMultiple extends Action
         $this->resultJsonFactory = $resultJsonFactory;
         $this->pushNotificationService = $pushNotificationService;
         $this->notificationLogFactory = $notificationLogFactory;
+        $this->logCollectionFactory = $logCollectionFactory;
         $this->dateTime = $dateTime;
         $this->storeManager = $storeManager;
     }
@@ -46,6 +50,7 @@ class SendMultiple extends Action
             $actionUrl = $this->getRequest()->getParam('action_url');
             $notificationType = $this->getRequest()->getParam('notification_type', 'general');
             $customData = $this->getRequest()->getParam('custom_data');
+            $scheduledAt = $this->getRequest()->getParam('scheduled_at');
 
             // Debug: Log input for emoji debugging
             $logger = \Magento\Framework\App\ObjectManager::getInstance()->get(\Psr\Log\LoggerInterface::class);
@@ -108,6 +113,45 @@ class SendMultiple extends Action
                 }
             }
 
+            // Calculate content hash for duplicate detection
+            // Hash includes: title + message + filters + store_id + notification_type
+            $storeId = (int)$this->storeManager->getStore()->getId();
+            // Sort filters array by keys for consistent hash generation
+            $sortedFilters = $filters;
+            if (is_array($sortedFilters)) {
+                ksort($sortedFilters);
+            }
+            $filtersJson = json_encode($sortedFilters, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $contentHash = hash('sha256', $title . '|' . $message . '|' . $filtersJson . '|' . $storeId . '|' . $notificationType);
+
+            // Check for duplicate notification using content_hash
+            // Check for logs with same content_hash and status pending/processing/completed
+            $existingLogCollection = $this->logCollectionFactory->create();
+            $existingLogCollection->addFieldToFilter('content_hash', $contentHash);
+            $existingLogCollection->addFieldToFilter('status', ['in' => ['pending', 'processing', 'completed']]);
+            $existingLog = $existingLogCollection->getFirstItem();
+
+            if ($existingLog->getId()) {
+                // Found duplicate - return existing log ID
+                $status = $existingLog->getStatus();
+                if ($status === 'completed') {
+                    return $resultJson->setData([
+                        'success' => true,
+                        'message' => __('This notification was already sent (Log ID: %1). All recipients have received it.', $existingLog->getId()),
+                        'log_id' => $existingLog->getId(),
+                        'duplicate' => true,
+                        'already_sent' => true
+                    ]);
+                }
+
+                return $resultJson->setData([
+                    'success' => true,
+                    'message' => __('A similar notification is already queued or being processed (Log ID: %1). Please wait for it to complete.', $existingLog->getId()),
+                    'log_id' => $existingLog->getId(),
+                    'duplicate' => true
+                ]);
+            }
+
             // Create notification log entry for async processing
             $notificationLog = $this->notificationLogFactory->create();
             $notificationLog->setTitle($title);
@@ -117,15 +161,29 @@ class SendMultiple extends Action
             $notificationLog->setCustomData($parsedCustomData);
             $notificationLog->setNotificationType($notificationType);
             $notificationLog->setFilters($filters);
-            $notificationLog->setStoreId((int)$this->storeManager->getStore()->getId());
+            $notificationLog->setStoreId($storeId);
+            $notificationLog->setContentHash($contentHash);
             $notificationLog->setCreatedAt($this->dateTime->gmtDate());
             $notificationLog->setStatus('pending');
+
+            // Set scheduled time if provided (format: Y-m-d H:i:s)
+            if ($scheduledAt) {
+                // Convert to GMT for storage
+                $scheduledAtGmt = $this->dateTime->gmtDate('Y-m-d H:i:s', $scheduledAt);
+                $notificationLog->setScheduledAt($scheduledAtGmt);
+            }
+
             $notificationLog->save();
+
+            $message = $scheduledAt
+                ? __('Notification has been scheduled for %1. You can check the status in Notification Logs.', $scheduledAt)
+                : __('Notification has been queued for processing. You can check the status in Notification Logs.');
 
             return $resultJson->setData([
                 'success' => true,
-                'message' => __('Notification has been queued for processing. You can check the status in Notification Logs.'),
-                'log_id' => $notificationLog->getId()
+                'message' => $message,
+                'log_id' => $notificationLog->getId(),
+                'scheduled_at' => $scheduledAt
             ]);
         } catch (\Exception $e) {
             return $resultJson->setData([

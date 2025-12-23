@@ -91,6 +91,16 @@
                         </div>
 
                         <div class="admin__field admin__field-option">
+                            <label class="admin__field-label" for="scheduled_at">
+                                <span><?= $block->escapeHtml(__('Schedule Send Time (Optional)')) ?></span>
+                            </label>
+                            <div class="admin__field-control">
+                                <input type="datetime-local" name="scheduled_at" id="scheduled_at" class="admin__control-text">
+                                <p class="note"><?= $block->escapeHtml(__('Leave empty to send immediately. Format: YYYY-MM-DD HH:MM')) ?></p>
+                            </div>
+                        </div>
+
+                        <div class="admin__field admin__field-option">
                             <label class="admin__field-label" for="user_type">
                                 <span><?= $block->escapeHtml(__('User Type')) ?></span>
                             </label>

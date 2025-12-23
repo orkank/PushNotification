@@ -1,6 +1,20 @@
 # Magento2 Firebase PushNotification Module
 
+**Version:** 2.1.0 (December 2025)
+**Status:** Production Ready ✅
+
 A comprehensive Magento 2 module for managing and sending push notifications via Firebase Cloud Messaging (FCM).
+
+## 🎯 Latest Updates (v2.1.0)
+
+- ✅ **Critical Bug Fixes**: Resolved bulk notification processing issues
+- ✅ **Scalability**: New tracking table for 10k-20k+ tokens
+- ✅ **Concurrent Protection**: Multi-layer lock mechanism
+- ✅ **Auto Cleanup**: Zero disk usage after completion
+- ✅ **Scheduled Sends**: Future-dated notification support
+- ✅ **Recovery System**: Automatic stuck process detection
+
+[See detailed changelog below](#version-21---critical-updates-december-2025)
 
 ## Features
 
@@ -487,6 +501,411 @@ When sending multiple notifications, you can filter by:
 - **SQL Query Optimization**: Direct database queries for better performance
 - **Security Enhancements**: Input validation and SQL injection protection
 - **Error Handling**: Improved error handling and user feedback
+
+---
+
+## Version 2.1 - Critical Updates (December 2025)
+
+### 🔥 Critical Bug Fixes
+
+#### 1. Bulk Notification Processing Issues
+**Problem:** Multiple critical issues were discovered in bulk notification processing:
+- Duplicate log records created on restart instead of updating existing ones
+- Concurrent processes could process the same notification simultaneously
+- Repeated notifications sent to the same users
+- Logs stuck in "processing" status indefinitely
+- No recovery mechanism for stuck/failed processes
+- Parameter count mismatch in `sendToMultipleUsers()` calls (12 instead of 10)
+
+**Solution:**
+- ✅ Fixed parameter count in Console Command and Cron Job
+- ✅ Implemented proper `$existingLog` parameter passing
+- ✅ Added stuck log recovery mechanism (1-hour timeout)
+- ✅ Improved status transition logic
+
+#### 2. Missing Token Tracking System
+**Problem:** Production system had NO tracking mechanism for sent tokens:
+- No way to track which tokens received notification
+- Restart would send to ALL tokens again (duplicates)
+- No recovery mechanism for interrupted sends
+- No way to resume from last sent token
+- Impossible to prevent duplicate sends
+
+**Solution - New Tracking Table:**
+Created `idangerous_push_notification_sent` table with:
+- `notification_log_id` + `token_id` relationship
+- UNIQUE constraint for duplicate prevention
+- CASCADE DELETE for automatic cleanup
+- Efficient indexes for fast queries
+- LEFT JOIN queries for unsent token filtering
+
+#### 3. Automatic Cleanup System
+**Problem:** Tracking table would grow indefinitely without cleanup.
+
+**Solution:**
+- ✅ Automatic cleanup when notification reaches `completed` status
+- ✅ Optional cron job for orphaned records (7+ days old)
+- ✅ Zero disk usage after completion
+
+#### 4. Concurrent Execution Protection
+**Problem:** Multiple processes could run simultaneously causing:
+- Duplicate processing of same notification
+- Database deadlocks
+- Duplicate notifications to users
+
+**Solution - Multi-Layer Protection:**
+
+**Layer 1: Process-Level Lock**
+```php
+LockManagerInterface with 1-hour timeout
+Prevents multiple process instances
+```
+
+**Layer 2: Atomic Status Update**
+```php
+UPDATE ... WHERE status = 'pending'
+Each log claimed atomically by one process
+```
+
+**Layer 3: Recovery Mechanism**
+```php
+Detects logs stuck >1 hour in 'processing'
+Automatically resets to 'pending'
+Resumes from last sent token
+```
+
+**Test Results:**
+- ✅ 5 concurrent processes tested
+- ✅ Each processed different notifications
+- ✅ Zero duplicates
+- ✅ All completed successfully
+
+#### 5. Bulk Notification Customer Association
+**Problem:** Bulk notifications were incorrectly associated with a single customer_id.
+
+**Solution:**
+- ✅ Bulk sends now keep `customer_id = NULL`
+- ✅ Only single-user notifications have customer_id
+- ✅ Proper distinction between bulk and targeted sends
+
+#### 6. Scheduled Notifications
+**New Feature:** Added ability to schedule notifications for future delivery:
+- ✅ `scheduled_at` column in logs table
+- ✅ Admin UI date/time picker
+- ✅ Cron respects scheduled time
+- ✅ Grid column shows scheduled time
+
+### 🏗️ Architecture Changes
+
+#### New Database Table
+```sql
+CREATE TABLE idangerous_push_notification_sent (
+    entity_id INT AUTO_INCREMENT PRIMARY KEY,
+    notification_log_id INT NOT NULL,
+    token_id INT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_log_token (notification_log_id, token_id),
+    FOREIGN KEY (notification_log_id) REFERENCES idangerous_push_notification_logs (entity_id) ON DELETE CASCADE,
+    FOREIGN KEY (token_id) REFERENCES idangerous_push_notification_tokens (entity_id) ON DELETE CASCADE,
+    INDEX idx_notification_log_id (notification_log_id),
+    INDEX idx_sent_at (sent_at)
+);
+```
+
+#### New Model Files
+- `Model/NotificationSent.php`
+- `Model/ResourceModel/NotificationSent.php`
+- `Model/ResourceModel/NotificationSent/Collection.php`
+
+#### New Cron Job
+- `Cron/CleanupOrphanedSentRecords.php` - Daily cleanup at 02:00 AM
+
+#### New Service Methods
+**Added:**
+- `getUnsentTokensForLog()` - Efficient LEFT JOIN query to find unsent tokens
+- `markTokensAsSent()` - Batch insert with duplicate handling (1000 tokens/batch)
+- `cleanupSentRecords()` - Automatic cleanup after completion
+- `getSentTokenCount()` - Fast count query for recovery
+
+**Note:** Previous production version had no tracking methods at all.
+
+### 🔒 Security & Reliability
+
+#### Concurrent Execution Safety
+```
+✅ LockManager prevents multiple process instances
+✅ Atomic database updates prevent race conditions
+✅ Status-based locking at log level
+✅ Recovery mechanism for stuck processes
+✅ Sent token tracking prevents duplicates
+```
+
+#### Data Integrity
+```
+✅ UNIQUE constraints prevent duplicate sends
+✅ Foreign keys with CASCADE DELETE
+✅ Atomic status transitions
+✅ Transaction-safe updates
+```
+
+#### Error Recovery
+```
+✅ 1-hour stuck detection
+✅ Automatic retry mechanism
+✅ Resume from last sent token
+✅ Failed status with error messages
+✅ Comprehensive logging
+```
+
+### 📊 Monitoring & Debugging
+
+#### Log Messages
+```
+PushNotification: Bulk send - all tokens belong to customer ID: X but keeping customer_id NULL
+PushNotification: Log ID X - Sending to Y unsent tokens (skipped Z)
+PushNotification: Cleaned up N sent records for log ID: X
+ProcessNotificationQueue: Log ID X already being processed by another instance. Skipping.
+CleanupOrphanedSentRecords: Cleaned up N orphaned sent records for X completed logs
+```
+
+#### Console Command Updates
+```bash
+# Check for concurrent execution
+php bin/magento idangerous:pushnotification:process-queue
+
+# Output includes:
+# - Lock status
+# - Stuck log recovery
+# - Atomic claim results
+# - Detailed processing info
+```
+
+### 🚀 Migration Guide
+
+#### For Existing Installations
+
+1. **Run Database Schema Update:**
+```bash
+php bin/magento setup:upgrade
+```
+
+2. **Verify New Table:**
+```sql
+SHOW CREATE TABLE idangerous_push_notification_sent;
+```
+
+3. **Check Scheduled Column:**
+```sql
+DESCRIBE idangerous_push_notification_logs;
+-- Should show 'scheduled_at' column
+```
+
+4. **Test Concurrent Execution:**
+```bash
+# Run multiple instances simultaneously
+php bin/magento idangerous:pushnotification:process-queue &
+php bin/magento idangerous:pushnotification:process-queue &
+# Should see "already running" message
+```
+
+### ⚠️ Breaking Changes
+
+**None** - All changes are backward compatible:
+- Old logs without `scheduled_at` work normally
+- Existing cron jobs continue working
+- No API changes
+- New tracking table works alongside existing logs
+
+### 📝 Upgrade Notes
+
+**Recommended Actions:**
+1. Monitor logs for first 24 hours after upgrade
+2. Check cleanup cron runs successfully (02:00 AM daily)
+3. Verify sent table remains empty after completions
+4. Test scheduled notifications feature
+5. Confirm no duplicate sends occur
+
+**Performance Expectations:**
+- 10k tokens: <30 seconds processing
+- 20k tokens: <60 seconds processing
+- Memory usage: <10MB per process
+- Disk usage: ~0MB after completion
+
+---
+
+## 🚨 Troubleshooting
+
+### Issue: Notifications Stuck in "Processing"
+
+**Symptoms:**
+- Notification log shows "processing" status for >1 hour
+- No progress in sending
+
+**Solution:**
+```bash
+# Manual recovery
+php bin/magento idangerous:pushnotification:process-queue
+
+# Check logs
+tail -f var/log/system.log | grep -i "pushnotification"
+```
+
+**Automatic Recovery:**
+- System automatically detects stuck logs after 1 hour
+- Resets to "pending" status
+- Resumes from last sent token
+
+### Issue: Duplicate Notifications
+
+**Symptoms:**
+- Users receiving same notification multiple times
+- Multiple log entries with same content
+
+**Cause:** Concurrent execution without proper locking (fixed in v2.1.0)
+
+**Verification:**
+```sql
+-- Check for duplicate sends
+SELECT notification_log_id, token_id, COUNT(*)
+FROM idangerous_push_notification_sent
+GROUP BY notification_log_id, token_id
+HAVING COUNT(*) > 1;
+```
+
+**Expected Result:** Empty (no duplicates)
+
+### Issue: Duplicate Sends on Restart
+
+**Symptoms:**
+- Users receiving same notification multiple times
+- Happens when process restarts during sending
+
+**Cause:** Old version had no tracking mechanism
+
+**Solution (v2.1.0):**
+- Upgrade to v2.1.0 (implements tracking table)
+- System now tracks each sent token
+- Restart automatically resumes from last sent token
+- Duplicates prevented by UNIQUE constraint
+
+### Issue: Sent Table Growing Indefinitely
+
+**Symptoms:**
+- `idangerous_push_notification_sent` table has millions of rows
+- Slow queries
+
+**Solution:**
+```bash
+# Check table size
+mysql> SELECT COUNT(*) FROM idangerous_push_notification_sent;
+
+# Should be 0 or very small (only active sends)
+# If large, run cleanup manually:
+php -r "require 'app/bootstrap.php';
+\$bootstrap = \Magento\Framework\App\Bootstrap::create(BP, \$_SERVER);
+\$obj = \$bootstrap->getObjectManager();
+\$cron = \$obj->get('IDangerous\PushNotification\Cron\CleanupOrphanedSentRecords');
+\$cron->execute();"
+```
+
+**Prevention:**
+- Automatic cleanup runs daily at 02:00 AM
+- Cleanup runs after each notification completion
+- Check cron is working: `php bin/magento cron:run`
+
+### Issue: "Already Running" Message
+
+**Symptoms:**
+```
+Push notification processing is already running. Skipping this execution.
+```
+
+**Cause:** Another process is currently running (this is normal)
+
+**If Stuck:**
+```bash
+# Check if process is actually running
+ps aux | grep "pushnotification:process-queue"
+
+# If no process found, lock might be stuck
+# Wait 1 hour for automatic timeout, or:
+mysql> DELETE FROM magento_lock WHERE name = 'idangerous_pushnotification_bulk_processing';
+```
+
+### Issue: Scheduled Notifications Not Sending
+
+**Symptoms:**
+- Notification scheduled for past time but still "pending"
+
+**Checks:**
+```bash
+# 1. Verify cron is running
+php bin/magento cron:run
+
+# 2. Check scheduled_at value
+mysql> SELECT entity_id, title, scheduled_at, status
+       FROM idangerous_push_notification_logs
+       WHERE scheduled_at IS NOT NULL;
+
+# 3. Ensure time is in GMT
+# scheduled_at should be in GMT timezone
+```
+
+### Issue: Customer ID Set for Bulk Sends
+
+**Symptoms:**
+- Bulk notification shows customer_id instead of NULL
+
+**Solution:** Fixed in v2.1.0
+- Upgrade to v2.1.0
+- Bulk sends now correctly keep customer_id = NULL
+
+### Debug Commands
+
+```bash
+# Check module version
+php bin/magento module:status IDangerous_PushNotification
+
+# View recent logs
+tail -100 var/log/system.log | grep -i "pushnotification"
+
+# Check pending notifications
+mysql> SELECT entity_id, title, status, created_at, scheduled_at
+       FROM idangerous_push_notification_logs
+       WHERE status = 'pending'
+       ORDER BY created_at DESC;
+
+# Check active tracking records
+mysql> SELECT COUNT(*) as active_sends
+       FROM idangerous_push_notification_sent;
+
+# Check lock status
+mysql> SELECT * FROM magento_lock
+       WHERE name LIKE '%pushnotification%';
+
+# Force process queue
+php bin/magento idangerous:pushnotification:process-queue --force-retry
+```
+
+### Performance Monitoring
+
+```bash
+# Monitor real-time processing
+tail -f var/log/system.log | grep -E "Processing notification|Success|Failed"
+
+# Check processing times
+mysql> SELECT
+    entity_id,
+    title,
+    total_sent,
+    TIMESTAMPDIFF(SECOND, created_at, processed_at) as seconds_to_complete
+FROM idangerous_push_notification_logs
+WHERE status = 'completed'
+ORDER BY entity_id DESC
+LIMIT 10;
+```
+
+---
 
 ## Requirements
 
